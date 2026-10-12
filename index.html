@@ -494,7 +494,7 @@
     </ul>
     <div class="callout">
         <div class="callout-label">Live companion and sources</div>
-        <p>This deck follows <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a>, where you can run the sweep yourself. Measured numbers: <a href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md">results.md</a> &sect;6a&ndash;6d, every setting three data seeds, mean &plusmn; standard deviation.</p>
+        <p>This deck follows <a href="https://transformer-training-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a>, where you can run the sweep yourself. Measured numbers: <a href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md">results.md</a> &sect;6a&ndash;6d, every setting three data seeds, mean &plusmn; standard deviation.</p>
     </div>
 </section>
 
@@ -544,8 +544,8 @@
 <line class="axis" x1="62" x2="62" y1="18" y2="248"/>
 <text class="lbl ax" x="258" y="284" text-anchor="middle">peak learning rate (log scale)</text>
 <text class="lbl ax" x="13" y="133" text-anchor="middle" transform="rotate(-90 13 133)">final validation loss</text>
-<clipPath id="clip133408789438400"><rect x="62" y="18" width="392" height="230"/></clipPath>
-<g clip-path="url(#clip133408789438400)">
+<clipPath id="clip129419002228352"><rect x="62" y="18" width="392" height="230"/></clipPath>
+<g clip-path="url(#clip129419002228352)">
 <path class="ln s1" d="M80.2,49.8 L136.4,127.3 L197.9,190.1 L254.1,189.4 L315.6,128.7 L371.7,93.9 L433.3,58.5"/>
 <line class="eb s1" x1="80.2" x2="80.2" y1="50.0" y2="49.6"/>
 <line class="eb s1" x1="136.4" x2="136.4" y1="129.2" y2="125.4"/>
@@ -671,8 +671,8 @@
 <line class="axis" x1="62" x2="62" y1="18" y2="248"/>
 <text class="lbl ax" x="258" y="284" text-anchor="middle">batch (windows of 8 characters, log scale)</text>
 <text class="lbl ax" x="13" y="133" text-anchor="middle" transform="rotate(-90 13 133)">steps to validation loss 2.6</text>
-<clipPath id="clip133408785665920"><rect x="62" y="18" width="392" height="230"/></clipPath>
-<g clip-path="url(#clip133408785665920)">
+<clipPath id="clip129418996956736"><rect x="62" y="18" width="392" height="230"/></clipPath>
+<g clip-path="url(#clip129418996956736)">
 <path class="ln s1" d="M79.1,61.0 L167.7,88.4 L256.4,127.7 L345.1,145.0 L433.7,174.7"/>
 <line class="eb s1" x1="79.1" x2="79.1" y1="87.8" y2="39.9"/>
 <line class="eb s1" x1="167.7" x2="167.7" y1="94.9" y2="82.2"/>
@@ -738,11 +738,11 @@
         <li><strong>Warmup</strong> is insurance; <strong>decay</strong> (cosine, or WSD so the run can be extended) pays off near convergence.</li>
         <li>Bigger batches cut steps until the <strong>critical batch</strong>; the gradient noise scale estimates it and grows as training goes on.</li>
     </ul>
-    <p class="live-link">Animated: <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a> &middot; next: <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">deck 06, initialisation, normalisation and &micro;P</a></p>
+    <p class="live-link">Animated: <a href="https://transformer-training-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a> &middot; next: <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">deck 06, initialisation, normalisation and &micro;P</a></p>
 </section>
 
 <footer class="footer">
-    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Transformer_Training">Transformer Training series</a> &middot; live, animated companion: <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, Learning rate, batch size and schedules</a> of <a href="https://transformer-decoder-explained.vercel.app/training">Transformer Decoder Explained, Part 2</a></p>
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Transformer_Training">Transformer Training series</a> &middot; live, animated companion: <a href="https://transformer-training-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, Learning rate, batch size and schedules</a> of <a href="https://transformer-training-explained.vercel.app/training">Transformer Decoder Explained, Part 2</a></p>
     <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://brendanjameslynskey.github.io/Transformer_Training_04_Optimisers/">&larr; 04 Optimisers</a> &nbsp;&middot;&nbsp; <a href="https://brendanjameslynskey.github.io/LLM_Hub_Transformer_Training/">Series index</a> &nbsp;&middot;&nbsp; <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">06 Init, Norm &amp; &micro;P &rarr;</a></p>
     <p style="margin-top: 0.5rem; font-size: 0.75rem;">Measured numbers: <a href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md">results.md</a> (transformer-explainer @15b1c9f). Code on these slides is cut from that repository.</p>
 </footer>

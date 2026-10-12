@@ -8,9 +8,9 @@ Why the learning rate matters most; the LR sweep and its stable band; warmup; co
 
 ## Live, animated companion
 
-This deck is the slide companion to Part 2 (Training) of [Transformer Decoder Explained](https://transformer-decoder-explained.vercel.app/training), where the same model trains in your browser:
+This deck is the slide companion to Part 2 (Training) of [Transformer Decoder Explained](https://transformer-training-explained.vercel.app/training), where the same model trains in your browser:
 
-- [Chapter 6: Learning rate, batch size and schedules](https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules)
+- [Chapter 6: Learning rate, batch size and schedules](https://transformer-training-explained.vercel.app/training/06-learning-rate-and-schedules)
 
 ## Where the numbers come from
 
