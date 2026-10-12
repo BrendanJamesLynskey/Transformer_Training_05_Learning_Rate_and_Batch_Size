@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Training 05 — Learning Rate, Schedules and Batch Size</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&family=Source+Code+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f2027;
+            --bg-card: #13272f;
+            --bg-code: #182f38;
+            --text-primary: #ede7dd;
+            --text-secondary: #8ca5a9;
+            --accent: #83c395;
+            --accent-dim: #83c39544;
+            --accent-glow: #83c39533;
+            --border: #23404a;
+            --font-display: 'Sora', sans-serif;
+            --font-mono: 'Source Code Pro', 'Source Code Pro', monospace;
+            --font-body: 'Manrope', sans-serif;
+            --max-width: 900px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin-bottom: 2rem;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem; color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code {
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            padding: 0.05rem 0.35rem;
+            border-radius: 3px;
+            color: #cfd7d1;
+        }
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(131,195,149,0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #cfd7d1;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .kw { color: #f48f70; }
+        .fn { color: #d4c0ea; }
+        .str { color: #c3dbea; }
+        .cm { color: #8ca5a9; font-style: italic; }
+        .num { color: #a8cee8; }
+        .type { color: #eac48b; }
+        .dir { color: #f48f70; }
+        .mac { color: #eac48b; }
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(19,39,47,0.5); }
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(131,195,149,0.08); }
+        .diagram-box.dim { color: var(--text-secondary); border-color: var(--border); }
+        .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-vertical .diagram-arrow { font-size: 1.1rem; }
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .hierarchy-level { display: flex; align-items: center; gap: 0.75rem; }
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+        .hierarchy-items { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(131,195,149,0.08); }
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.85rem; }
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout p { margin-bottom: 0; }
+        .callout p + p { margin-top: 0.5rem; }
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+        .contents-list a { color: var(--text-primary); text-decoration: none; transition: color 0.2s; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #eac48b; color: #eac48b; background: rgba(234,196,139,0.08); }
+        .badge.bad   { border-color: #f48f70; color: #f48f70; background: rgba(244,143,112,0.08); }
+        @media (max-width: 640px) {
+            .slide { padding: 3rem 1rem; min-height: auto; }
+            .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
+            .slide h2 { font-size: 1.5rem; }
+            .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; }
+            .pipeline { gap: 0.15rem; }
+            .pipeline-step { font-size: 0.6rem; padding: 0.2rem 0.4rem; }
+            .hero h1 { font-size: 1.8rem; }
+            table { font-size: 0.78rem; }
+        }
+        .slide p a, .slide td a, .slide li a, .callout a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+        .slide p a:hover, .slide td a:hover, .slide li a:hover, .callout a:hover { border-bottom-style: solid; }
+        .hero { overflow: hidden; }
+        .diagram-panel { min-width: 0; }
+        .metric-label .katex, .callout-label .katex, .series-label .katex,
+        .metric-label .katex *, .callout-label .katex * { text-transform: none; }
+        .canvas-wrap canvas { image-rendering: auto; }
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
+        @media (max-width: 640px) { .katex-display { font-size: 0.8em; } }
+        .chart-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; margin: 1.25rem 0; }
+        .chart-wrap svg { display: block; width: 100%; height: auto; }
+        .chart-cap { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem; }
+        .live-link { font-family: var(--font-mono); font-size: 0.8rem; margin-top: 1rem; }
+        .widget { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 1.25rem 0; }
+        .widget .row { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; margin-bottom: 0.6rem; }
+        .widget label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: center; }
+        .widget input[type=range] { width: 160px; max-width: 100%; accent-color: var(--accent); }
+        .widget select { background: var(--bg-code); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.25rem 0.4rem; font-family: var(--font-mono); font-size: 0.78rem; }
+        .widget button { background: var(--bg-code); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0.35rem 0.8rem; font-family: var(--font-mono); font-size: 0.78rem; cursor: pointer; min-height: 36px; }
+        .widget button:hover { background: var(--accent-dim); }
+        .widget .out { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-primary); }
+        .widget .cap { font-size: 0.82rem; color: var(--text-secondary); min-height: 2.6em; }
+        .widget svg { display: block; width: 100%; height: auto; }
+        .num-strong { color: var(--text-primary); font-weight: 600; }
+    /* deck-mobile-fix:hero */ .hero{overflow:hidden}@supports (overflow-x:clip){.hero{overflow:visible;overflow-x:clip}}
+    /* deck-mobile-fix:phone */ @media (max-width:640px){.diagram-box,.tier-fill,.section-divider>span,.action-btn{white-space:normal;overflow-wrap:anywhere}.diagram-grid>*,.diagram-panel,.diagram-box,.code-block,.callout,.metric,.control-group,.control-row>*,.pipeline-body,.roll-track>*,.tier-fill,.timeline-row>*{min-width:0;max-width:100%}p,li,a,code,td,th,.callout,.diagram-panel{overflow-wrap:break-word}pre{max-width:100%;overflow-x:auto}table{display:block;max-width:100%;overflow-x:auto}.katex-display,.bits,.canvas-wrap,.influence-map-wrapper,.timeline-track,div:has(>.bank-cell){max-width:100%;overflow-x:auto;overflow-y:hidden}select,input,img,video,iframe,.action-btn{max-width:100%}canvas{max-width:100%;height:auto}}
+            /* tt-charts */
+        .chart .plot-bg { fill: none; }
+        .chart .grid { stroke: var(--border); stroke-width: 1; }
+        .chart .axis { stroke: var(--text-secondary); stroke-width: 1; }
+        .chart .lbl { fill: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+        .chart .lbl.ax { fill: var(--text-primary); font-size: 12.5px; }
+        .chart .hline { stroke: var(--text-secondary); stroke-dasharray: 2 4; }
+        .chart .ln { fill: none; stroke-width: 2.2; }
+        .chart .eb { stroke-width: 1.4; }
+        .chart .legend-bg { fill: var(--bg-primary); stroke: var(--border); opacity: 0.92; }
+        .s1 { stroke: #56b4e9; fill: #56b4e9; } .s2 { stroke: #e69f00; fill: #e69f00; }
+        .s3 { stroke: #009e73; fill: #3fbf96; } .s4 { stroke: #cc79a7; fill: #cc79a7; }
+        .s5 { stroke: #f0e442; fill: #f0e442; } .s6 { stroke: #d55e00; fill: #d55e00; }
+        .s0 { stroke: var(--text-secondary); fill: var(--text-secondary); }
+        .ln { fill: none !important; }
+        .chart .bar { stroke: none; opacity: 0.85; }
+        .chart .lbl.inbar { fill: var(--bg-primary); font-weight: 600; }
+        @media (max-width: 640px) { .chart .lbl { font-size: 14px; } .chart .lbl.ax { font-size: 14px; } .wg-text, .wg-dim { font-size: 15px; } }
+        .wg-cell { fill: var(--bg-code); stroke: var(--border); }
+        .wg-text { fill: var(--text-primary); font-family: var(--font-mono); font-size: 13px; }
+        .wg-dim { fill: var(--text-secondary); font-family: var(--font-mono); font-size: 13px; }
+        .wg-hot { fill: #e69f00; } .wg-done { fill: #009e73; } .wg-cool { fill: #56b4e9; } .wg-idle { fill: var(--bg-code); stroke: var(--border); }
+        .wg-fwd { fill: #56b4e9; } .wg-bwd { fill: #e69f00; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})"></script>
+</head>
+<body>
+<header class="hero">
+    <div class="series-label">Transformer Training &mdash; Presentation 05</div>
+    <h1>Learning Rate, Schedules <span class="accent">and Batch Size</span></h1>
+    <p class="subtitle">The single most important number in a run, and how it is found: a learning-rate sweep, warmup, cosine and warmup&ndash;stable&ndash;decay schedules, and the batch size, with the critical batch and the gradient noise scale measured on the model.</p>
+
+    <div class="tags">
+        <span class="tag">LR sweep</span>
+        <span class="tag">Warmup</span>
+        <span class="tag">Cosine</span>
+        <span class="tag">WSD</span>
+        <span class="tag">Critical batch</span>
+        <span class="tag">Gradient noise scale</span>
+        <span class="tag">Linear scaling</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Sweep</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Warmup</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Peak</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Decay</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We&rsquo;ll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Why the Learning Rate Matters Most</a></li>
+        <li><a href="#slide-02">The Learning-Rate Sweep</a></li>
+        <li><a href="#slide-03">Warmup</a></li>
+        <li><a href="#slide-04">Decay: Cosine and Warmup&ndash;Stable&ndash;Decay</a></li>
+        <li><a href="#slide-05">Four Schedules, Measured</a></li>
+        <li><a href="#slide-06">Batch Size and the Critical Batch</a></li>
+        <li><a href="#slide-07">The Gradient Noise Scale</a></li>
+        <li><a href="#slide-08">The Linear Scaling Rule</a></li>
+        <li><a href="#slide-09">What to Take Away</a></li>
+    </ul>
+    <div class="callout">
+        <div class="callout-label">Live companion and sources</div>
+        <p>This deck follows <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a>, where you can run the sweep yourself. Measured numbers: <a href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md">results.md</a> &sect;6a&ndash;6d, every setting three data seeds, mean &plusmn; standard deviation.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Why the Learning Rate Matters Most</h2>
+    <p>The gradient gives a direction; the learning rate \(\eta\) decides the step. Too small and the model crawls; too large and the steps overshoot. In between is a band where it trains well.</p>
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border"><h4>Too small: 0.001</h4><p>Ends 2,000 steps at 2.948, still on deck 01&rsquo;s plateau.</p></div>
+        <div class="diagram-panel accent-border"><h4>In the band: 0.01</h4><p>2.277 &plusmn; 0.090; 0.03 is indistinguishable (2.280 &plusmn; 0.107).</p></div>
+        <div class="diagram-panel accent-border"><h4>Too large: 1</h4><p>Ends at 2.906; recomputed on another computer, one of its seeds blew up.</p></div>
+    </div>
+    <p>None of these runs diverged outright in the recorded results: gradient clipping and Adam&rsquo;s normalised step usually keep such a run finite; it just learns little. Plain SGD and momentum have no such safety net (<a href="https://brendanjameslynskey.github.io/Transformer_Training_07_Stability/">deck 07</a> blows one up with a single bad batch).</p>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>The Learning-Rate Sweep</h2>
+    <p>Train the same model for the same number of steps at a ladder of learning rates a factor of about 3 apart, and keep the best. AdamW, warmup 50 then cosine to a tenth of the peak, 2,000 steps, clipping at 1.0, three seeds each (results.md &sect;6a):</p>
+    <div class="chart-wrap"><svg class="chart" viewBox="0 0 480 290" role="img" aria-label="Learning-rate sweep">
+<rect class="plot-bg" x="62" y="18" width="392" height="230"/>
+<line class="grid" x1="62" x2="454" y1="248.0" y2="248.0"/>
+<text class="lbl" x="56" y="252.0" text-anchor="end">2</text>
+<line class="grid" x1="62" x2="454" y1="195.7" y2="195.7"/>
+<text class="lbl" x="56" y="199.7" text-anchor="end">2.25</text>
+<line class="grid" x1="62" x2="454" y1="143.5" y2="143.5"/>
+<text class="lbl" x="56" y="147.5" text-anchor="end">2.5</text>
+<line class="grid" x1="62" x2="454" y1="91.2" y2="91.2"/>
+<text class="lbl" x="56" y="95.2" text-anchor="end">2.75</text>
+<line class="grid" x1="62" x2="454" y1="38.9" y2="38.9"/>
+<text class="lbl" x="56" y="42.9" text-anchor="end">3</text>
+<line class="grid" x1="80.2" x2="80.2" y1="18" y2="248"/>
+<text class="lbl" x="80.2" y="264" text-anchor="middle">0.001</text>
+<line class="grid" x1="136.4" x2="136.4" y1="18" y2="248"/>
+<text class="lbl" x="136.4" y="264" text-anchor="middle">0.003</text>
+<line class="grid" x1="197.9" x2="197.9" y1="18" y2="248"/>
+<text class="lbl" x="197.9" y="264" text-anchor="middle">0.01</text>
+<line class="grid" x1="254.1" x2="254.1" y1="18" y2="248"/>
+<text class="lbl" x="254.1" y="264" text-anchor="middle">0.03</text>
+<line class="grid" x1="315.6" x2="315.6" y1="18" y2="248"/>
+<text class="lbl" x="315.6" y="264" text-anchor="middle">0.1</text>
+<line class="grid" x1="371.7" x2="371.7" y1="18" y2="248"/>
+<text class="lbl" x="371.7" y="264" text-anchor="middle">0.3</text>
+<line class="grid" x1="433.3" x2="433.3" y1="18" y2="248"/>
+<text class="lbl" x="433.3" y="264" text-anchor="middle">1</text>
+<line class="axis" x1="62" x2="454" y1="248" y2="248"/>
+<line class="axis" x1="62" x2="62" y1="18" y2="248"/>
+<text class="lbl ax" x="258" y="284" text-anchor="middle">peak learning rate (log scale)</text>
+<text class="lbl ax" x="13" y="133" text-anchor="middle" transform="rotate(-90 13 133)">final validation loss</text>
+<clipPath id="clip133408789438400"><rect x="62" y="18" width="392" height="230"/></clipPath>
+<g clip-path="url(#clip133408789438400)">
+<path class="ln s1" d="M80.2,49.8 L136.4,127.3 L197.9,190.1 L254.1,189.4 L315.6,128.7 L371.7,93.9 L433.3,58.5"/>
+<line class="eb s1" x1="80.2" x2="80.2" y1="50.0" y2="49.6"/>
+<line class="eb s1" x1="136.4" x2="136.4" y1="129.2" y2="125.4"/>
+<line class="eb s1" x1="197.9" x2="197.9" y1="208.9" y2="171.3"/>
+<line class="eb s1" x1="254.1" x2="254.1" y1="211.9" y2="167.0"/>
+<line class="eb s1" x1="315.6" x2="315.6" y1="150.0" y2="107.5"/>
+<line class="eb s1" x1="371.7" x2="371.7" y1="111.4" y2="76.4"/>
+<line class="eb s1" x1="433.3" x2="433.3" y1="64.1" y2="52.9"/>
+<circle class="pt s1" cx="80.2" cy="49.8" r="3"/>
+<circle class="pt s1" cx="136.4" cy="127.3" r="3"/>
+<circle class="pt s1" cx="197.9" cy="190.1" r="3"/>
+<circle class="pt s1" cx="254.1" cy="189.4" r="3"/>
+<circle class="pt s1" cx="315.6" cy="128.7" r="3"/>
+<circle class="pt s1" cx="371.7" cy="93.9" r="3"/>
+<circle class="pt s1" cx="433.3" cy="58.5" r="3"/>
+</g>
+<g class="legend"><rect class="legend-bg" x="176" y="24" width="272" height="24" rx="4"/><line class="ln s1" x1="184" x2="202" y1="34" y2="34"/><text class="lbl" x="207" y="38">AdamW, mean &plusmn; sd over 3 seeds</text></g>
+</svg><div class="chart-cap">Final validation loss against peak learning rate (results.md &sect;6a). Best mean: 0.01.</div></div>
+    <p>Every optimiser and every method has its own best rate, so a fair comparison <strong>tunes the learning rate for each one separately</strong>: deck 04 compared optimisers each at the best of its own three rates, and <a href="https://brendanjameslynskey.github.io/Transformer_Training_12_Training_over_Slow_Links/">deck 12</a> does the same for distributed-training methods, because a method that changes what the optimiser sees changes the rate it wants.</p>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Warmup</h2>
+    $$\eta_t = \eta\,\frac{t+1}{W} \qquad (t &lt; W)$$
+    <p>Most runs start with a few hundred to a few thousand steps of linearly rising learning rate. Early on the gradients are large and change fast, and Adam&rsquo;s running averages are built from only a few steps, so a full-size first step can throw the weights somewhere bad. Warmup was popularised for large-batch training by <a href="https://arxiv.org/abs/1706.02677">Goyal et al. (2017)</a> and is essential for post-LN transformers (<a href="https://arxiv.org/abs/2002.04745">Xiong et al. 2020</a>; <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">deck 06</a>).</p>
+    <div class="callout">
+        <div class="callout-label">Measured: this model doesn&rsquo;t need it</div>
+        <p>This tiny pre-LN model at a peak of 0.01 trains fine without warmup: the run that starts at the full rate is at 2.382 at step 1,000 against 2.640 with 50 warmup steps, and ends at 2.159 &plusmn; 0.045 against 2.246 &plusmn; 0.025. Warmup is insurance that this model happens not to need.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>Decay: Cosine and Warmup&ndash;Stable&ndash;Decay</h2>
+    <p>At the end of a run a smaller learning rate lets the weights settle into a valley instead of bouncing across it. The <strong>cosine</strong> schedule (<a href="https://arxiv.org/abs/1608.03983">Loshchilov &amp; Hutter 2016</a>) decays smoothly from the start; LLaMA used it down to 10% of the peak (<a href="https://arxiv.org/abs/2302.13971">Touvron et al. 2023, &sect;2.3</a>). Its drawback: the run&rsquo;s length must be fixed in advance. <strong>WSD</strong> (<a href="https://arxiv.org/abs/2404.06395">Hu et al. 2024</a>, studied by <a href="https://arxiv.org/abs/2405.18392">H&auml;gele et al. 2024</a>) holds the peak and decays only at the end, so a run can be extended from any checkpoint of the stable phase.</p>
+    <div class="widget" id="sch-widget">
+        <div class="row">
+            <label>warmup W <input type="range" id="sch-w" min="0" max="400" step="10" value="50"></label>
+            <label>WSD decay D <input type="range" id="sch-d" min="100" max="1000" step="50" value="400"></label>
+            <span class="out" id="sch-out"></span>
+        </div>
+        <svg id="sch-svg" viewBox="0 0 480 210" role="img" aria-label="Learning-rate schedules"></svg>
+        <div class="cap" id="sch-cap" aria-live="polite"></div>
+    </div>
+    <script>
+    (function () {
+        const T = 2000, eta = 0.01, mn = 0.001;
+        const cos = (t, W) => t < W ? eta * (t + 1) / W : mn + 0.5 * (eta - mn) * (1 + Math.cos(Math.PI * (t - W) / (T - W)));
+        const wsd = (t, W, D) => t < W ? eta * (t + 1) / W : t < T - D ? eta : eta + (mn - eta) * (t - (T - D)) / D;
+        const con = (t, W) => t < W ? eta * (t + 1) / W : eta;
+        const X = t => 50 + t / T * 410, Y = v => 180 - v / 0.011 * 160;
+        const svg = document.getElementById('sch-svg');
+        function draw() {
+            const W = +document.getElementById('sch-w').value, D = +document.getElementById('sch-d').value;
+            const path = f => { let d = ''; for (let t = 0; t < T; t += 5) d += (d ? 'L' : 'M') + X(t).toFixed(1) + ',' + Y(f(t)).toFixed(1); return d; };
+            let g = '';
+            for (const v of [0, 0.005, 0.01]) g += '<line x1="50" x2="460" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--border)"/><text class="wg-dim" x="45" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + '</text>';
+            for (const t of [0, 500, 1000, 1500, 2000]) g += '<text class="wg-dim" x="' + X(t) + '" y="200" text-anchor="middle">' + t + '</text>';
+            svg.innerHTML = g + '<path class="ln s0" stroke-width="2" d="' + path(t => con(t, W)) + '"/>' +
+                '<path class="ln s1" stroke-width="2.4" d="' + path(t => cos(t, W)) + '"/>' +
+                '<path class="ln s2" stroke-width="2.4" stroke-dasharray="6 4" d="' + path(t => wsd(t, W, D)) + '"/>' +
+                '<text class="wg-dim s1" x="300" y="' + (Y(cos(1300, W)) - 8) + '" style="stroke:none">cosine</text>' +
+                '<text class="wg-dim s2" x="' + X(T - D) + '" y="' + (Y(eta) - 8) + '" style="stroke:none" text-anchor="middle">WSD decay starts</text>';
+            document.getElementById('sch-out').textContent = 'W = ' + W + ', D = ' + D + ' of ' + T + ' steps; peak 0.01, floor 0.001';
+            document.getElementById('sch-cap').textContent = 'At step 1,000: cosine ' + cos(1000, W).toFixed(5) + ', WSD ' + wsd(1000, W, D).toFixed(5) +
+                '. Grey: warmup then constant.';
+        }
+        document.getElementById('sch-w').addEventListener('input', draw);
+        document.getElementById('sch-d').addEventListener('input', draw);
+        draw();
+    })();
+    </script>
+    $$\eta_t = \eta_{\min} + \tfrac12(\eta - \eta_{\min})\Big(1 + \cos \tfrac{\pi (t-W)}{T-W}\Big)$$
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Four Schedules, Measured</h2>
+    <p>AdamW at peak learning rate 0.01, 2,000 steps, three seeds, warmup 50 where used, WSD decaying over the last 20% to a tenth of the peak (results.md &sect;6b):</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Schedule</th><th>Final validation loss (mean &plusmn; sd)</th><th>Seeds 1, 2, 3</th></tr></thead>
+            <tbody>
+                <tr><td>constant</td><td>2.159 &plusmn; 0.045</td><td>2.111, 2.165, 2.201</td></tr>
+                <tr><td>warmup + constant</td><td>2.246 &plusmn; 0.025</td><td>2.275, 2.238, 2.227</td></tr>
+                <tr><td>warmup + cosine</td><td>2.277 &plusmn; 0.090</td><td>2.299, 2.354, 2.178</td></tr>
+                <tr><td>WSD</td><td>2.224 &plusmn; 0.038</td><td>2.264, 2.220, 2.189</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>WSD is the same run as warmup + constant until step 1,600; then its decay pulls it below. The cosine run ends where it does because a 2,000-step run that is still improving at its end gains little from spending its last steps at a small learning rate. <strong>Decay pays off in long runs that are close to converged</strong>; this toy isn&rsquo;t, and the spreads overlap.</p>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Batch Size and the Critical Batch</h2>
+    <p>Each step&rsquo;s gradient is an average over the batch: a noisy estimate of the true gradient. A bigger batch gives a better estimate, so the same progress needs fewer steps, but each step costs more. <a href="https://arxiv.org/abs/1812.06162">McCandlish et al. (2018)</a> model the trade-off: doubling the batch halves the steps well below a <strong>critical batch size</strong>, and barely helps above it.</p>
+    $$S = S_{\min}\Big(1 + \frac{B_{\text{crit}}}{B}\Big)$$
+    <div class="chart-wrap"><svg class="chart" viewBox="0 0 480 290" role="img" aria-label="Steps to target against batch size">
+<rect class="plot-bg" x="62" y="18" width="392" height="230"/>
+<line class="grid" x1="62" x2="454" y1="248.0" y2="248.0"/>
+<text class="lbl" x="56" y="252.0" text-anchor="end">300</text>
+<line class="grid" x1="62" x2="454" y1="197.0" y2="197.0"/>
+<text class="lbl" x="56" y="201.0" text-anchor="end">500</text>
+<line class="grid" x1="62" x2="454" y1="127.7" y2="127.7"/>
+<text class="lbl" x="56" y="131.7" text-anchor="end">1,000</text>
+<line class="grid" x1="62" x2="454" y1="58.5" y2="58.5"/>
+<text class="lbl" x="56" y="62.5" text-anchor="end">2,000</text>
+<line class="grid" x1="62" x2="454" y1="18.0" y2="18.0"/>
+<text class="lbl" x="56" y="22.0" text-anchor="end">3,000</text>
+<line class="grid" x1="79.1" x2="79.1" y1="18" y2="248"/>
+<text class="lbl" x="79.1" y="264" text-anchor="middle">4</text>
+<line class="grid" x1="167.7" x2="167.7" y1="18" y2="248"/>
+<text class="lbl" x="167.7" y="264" text-anchor="middle">8</text>
+<line class="grid" x1="256.4" x2="256.4" y1="18" y2="248"/>
+<text class="lbl" x="256.4" y="264" text-anchor="middle">16</text>
+<line class="grid" x1="345.1" x2="345.1" y1="18" y2="248"/>
+<text class="lbl" x="345.1" y="264" text-anchor="middle">32</text>
+<line class="grid" x1="433.7" x2="433.7" y1="18" y2="248"/>
+<text class="lbl" x="433.7" y="264" text-anchor="middle">64</text>
+<line class="axis" x1="62" x2="454" y1="248" y2="248"/>
+<line class="axis" x1="62" x2="62" y1="18" y2="248"/>
+<text class="lbl ax" x="258" y="284" text-anchor="middle">batch (windows of 8 characters, log scale)</text>
+<text class="lbl ax" x="13" y="133" text-anchor="middle" transform="rotate(-90 13 133)">steps to validation loss 2.6</text>
+<clipPath id="clip133408785665920"><rect x="62" y="18" width="392" height="230"/></clipPath>
+<g clip-path="url(#clip133408785665920)">
+<path class="ln s1" d="M79.1,61.0 L167.7,88.4 L256.4,127.7 L345.1,145.0 L433.7,174.7"/>
+<line class="eb s1" x1="79.1" x2="79.1" y1="87.8" y2="39.9"/>
+<line class="eb s1" x1="167.7" x2="167.7" y1="94.9" y2="82.2"/>
+<line class="eb s1" x1="256.4" x2="256.4" y1="137.2" y2="119.1"/>
+<line class="eb s1" x1="345.1" x2="345.1" y1="182.3" y2="117.8"/>
+<line class="eb s1" x1="433.7" x2="433.7" y1="178.8" y2="170.8"/>
+<circle class="pt s1" cx="79.1" cy="61.0" r="3"/>
+<circle class="pt s1" cx="167.7" cy="88.4" r="3"/>
+<circle class="pt s1" cx="256.4" cy="127.7" r="3"/>
+<circle class="pt s1" cx="345.1" cy="145.0" r="3"/>
+<circle class="pt s1" cx="433.7" cy="174.7" r="3"/>
+<path class="ln s2" d="M62.0,42.6 L74.2,49.6 L86.4,56.5 L98.6,63.2 L110.8,69.6 L123.0,75.9 L135.1,81.9 L147.3,87.8 L159.5,93.4 L171.7,98.8 L183.9,104.0 L196.1,109.0 L208.3,113.7 L220.5,118.2 L232.7,122.5 L244.9,126.5 L257.1,130.4 L269.2,134.0 L281.4,137.4 L293.6,140.6 L305.8,143.6 L318.0,146.4 L330.2,149.1 L342.4,151.5 L354.6,153.8 L366.8,155.9 L379.0,157.9 L391.2,159.7 L403.3,161.4 L415.5,162.9 L427.7,164.4 L439.9,165.7" stroke-dasharray="5 4"/>
+</g>
+<g class="legend"><rect class="legend-bg" x="68" y="202" width="239" height="40" rx="4"/><line class="ln s1" x1="76" x2="94" y1="212" y2="212"/><text class="lbl" x="99" y="216">measured, mean &plusmn; sd</text><line class="ln s2" x1="76" x2="94" y1="228" y2="228" stroke-dasharray="5 4"/><text class="lbl" x="99" y="232">fit: S = S_min (1 + B_crit / B)</text></g>
+</svg><div class="chart-cap">Each point at the better of two learning rates, three seeds (results.md &sect;6c). Fit RMS error 0.077 in log steps.</div></div>
+    <p>Steps to a validation loss of 2.6 at five batch sizes, each at the better of two learning rates, three seeds (results.md &sect;6c). From 4 to 64 windows the steps fall from 1,950 to 625, far less than the 16-fold the batch grew. The fit gives \(B_{\text{crit}}\) = 10.4 windows, \(S_{\min}\) = 592 steps.</p>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>The Gradient Noise Scale</h2>
+    <p>McCandlish et al.&rsquo;s quick estimate of the critical batch is the <strong>gradient noise scale</strong>: the gradient&rsquo;s variance over its squared size (their eq. 2.9), the batch at which noise is as large as signal.</p>
+    $$B_{\text{simple}} = \frac{\operatorname{tr}(\Sigma)}{|G|^2}$$
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Step</th><th>tr(&Sigma;)</th><th>|G|<sup>2</sup></th><th>B<sub>simple</sub> (windows)</th></tr></thead>
+            <tbody>
+                <tr><td>0</td><td>1.6e+00</td><td>5.8e-01</td><td>2.8</td></tr>
+                <tr><td>250</td><td>1.9e+00</td><td>3.1e-02</td><td>62.8</td></tr>
+                <tr><td>500</td><td>1.3e+00</td><td>1.0e-02</td><td>126.4</td></tr>
+                <tr><td>1,000</td><td>2.3e+00</td><td>2.8e-02</td><td>79.5</td></tr>
+                <tr><td>1,500</td><td>9.0e+00</td><td>5.6e-02</td><td>161.4</td></tr>
+                <tr><td>2,000</td><td>1.2e+01</td><td>2.6e-02</td><td>455.7</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>Measured from 256 single-window gradients along the default run (results.md &sect;6d). It agrees with the fitted 10 windows only to within about an order of magnitude, which is the precision McCandlish et al. claim for it. The trend is the useful part: <strong>as the loss falls, the gradient&rsquo;s signal shrinks relative to its noise</strong>, so later in training a bigger batch is worth more, which is why some large runs grow their batch during training.</p>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>The Linear Scaling Rule</h2>
+    <p>The <em>linear scaling rule</em> (<a href="https://arxiv.org/abs/1706.02677">Goyal et al. 2017</a>): when you multiply the batch by \(k\), multiply the learning rate by \(k\) too, up to a limit, since \(k\) small steps in about the same direction add up to one \(k\)-times larger step.</p>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Where it holds</h4>
+            <p>SGD, below the critical batch, after warmup (Goyal et al. trained ImageNet with large batches this way, with a warmup).</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Where it weakens</h4>
+            <p>Adam&rsquo;s normalised step: the step size no longer scales with the gradient. Large language-model runs therefore tune the batch size and learning rate together, and the measured best rate here changed between batch sizes (results.md &sect;6c).</p>
+        </div>
+    </div>
+    <p>Batch size is also where parallelism meets optimisation: more data-parallel workers means a bigger batch per step (<a href="https://brendanjameslynskey.github.io/Transformer_Training_10_Data_Parallelism_and_ZeRO/">deck 10</a>), and the critical batch says how far that helps.</p>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>What to Take Away</h2>
+    <ul>
+        <li>The learning rate is <strong>the</strong> hyperparameter: find its stable band with a sweep, a factor of about 3 per rung, several seeds.</li>
+        <li>Tune it <strong>per method</strong>: anything that changes what the optimiser sees changes the rate it wants.</li>
+        <li><strong>Warmup</strong> is insurance; <strong>decay</strong> (cosine, or WSD so the run can be extended) pays off near convergence.</li>
+        <li>Bigger batches cut steps until the <strong>critical batch</strong>; the gradient noise scale estimates it and grows as training goes on.</li>
+    </ul>
+    <p class="live-link">Animated: <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, learning rate, batch size and schedules</a> &middot; next: <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">deck 06, initialisation, normalisation and &micro;P</a></p>
+</section>
+
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Transformer_Training">Transformer Training series</a> &middot; live, animated companion: <a href="https://transformer-decoder-explained.vercel.app/training/06-learning-rate-and-schedules">chapter 6, Learning rate, batch size and schedules</a> of <a href="https://transformer-decoder-explained.vercel.app/training">Transformer Decoder Explained, Part 2</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://brendanjameslynskey.github.io/Transformer_Training_04_Optimisers/">&larr; 04 Optimisers</a> &nbsp;&middot;&nbsp; <a href="https://brendanjameslynskey.github.io/LLM_Hub_Transformer_Training/">Series index</a> &nbsp;&middot;&nbsp; <a href="https://brendanjameslynskey.github.io/Transformer_Training_06_Init_Norm_and_muP/">06 Init, Norm &amp; &micro;P &rarr;</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.75rem;">Measured numbers: <a href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md">results.md</a> (transformer-explainer @15b1c9f). Code on these slides is cut from that repository.</p>
+</footer>
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+</body>
+</html>
